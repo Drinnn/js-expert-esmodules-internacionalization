@@ -1,34 +1,34 @@
-import chalk from "chalk";
-import chalkTable from "chalk-table";
-import DraftLog from "draftlog";
-import readline from "readline";
-
-import database from "../database.json" assert { type: "json" };
+import TerminalController from "./terminalController.js";
 
 import Person from "./person.js";
 
-DraftLog(console).addLineListener(process.stdin);
+import database from "../database.json" assert { type: "json" };
 
 const DEFAULT_LANG = "pt-BR";
+const STOP_TERM = ":q";
 
-const options = {
-  leftPad: 2,
-  columns: [
-    { field: "id", name: chalk.cyan("ID") },
-    { field: "vehicles", name: chalk.magenta("Vehicles") },
-    { field: "kmTraveled", name: chalk.cyan("Km Traveled") },
-    { field: "from", name: chalk.cyan("From") },
-    { field: "to", name: chalk.cyan("To") },
-  ],
-};
+const terminalController = new TerminalController();
+terminalController.initializeTerminal(database, DEFAULT_LANG);
 
-const table = chalkTable(
-  options,
-  database.map((item) => new Person(item).formatted(DEFAULT_LANG))
-);
-const print = console.draft(table);
+async function mainLoop() {
+  try {
+    const answer = await terminalController.question();
+    if (answer === STOP_TERM) {
+      terminalController.closeTerminal();
+      console.log("process finished!");
 
-const terminal = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
+      return;
+    }
+
+    const person = Person.generateInstanceFromString(answer);
+    terminalController.updateTable(person.formatted(DEFAULT_LANG));
+
+    return mainLoop();
+  } catch (error) {
+    console.error("error", error);
+
+    return mainLoop();
+  }
+}
+
+await mainLoop();
